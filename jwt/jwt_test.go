@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	jose "gopkg.in/square/go-jose.v2"
+	jose "github.com/unravelin/go-jose"
 )
 
 var (

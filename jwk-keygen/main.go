@@ -30,8 +30,8 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
+	"github.com/unravelin/go-jose"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"gopkg.in/square/go-jose.v2"
 )
 
 var (
