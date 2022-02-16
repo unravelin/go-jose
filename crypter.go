@@ -33,6 +33,9 @@ type Encrypter interface {
 	Options() EncrypterOptions
 }
 
+// CustomDeriveECDHES allows for a custom implementation of deriving the ECDHES cek value
+type CustomDeriveECDHES func(alg string, apuData, apvData []byte, priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey, size int) []byte
+
 // A generic content cipher
 type contentCipher interface {
 	keySize() int
@@ -80,6 +83,9 @@ type EncrypterOptions struct {
 	// of a JWS object. Some specifications which make use of JWS like to insert
 	// additional values here. All values must be JSON-serializable.
 	ExtraHeaders map[HeaderKey]interface{}
+
+	// For ECDH-ES this is an optional function to generate a custom cek
+	customDeriveECDHES CustomDeriveECDHES
 }
 
 // WithHeader adds an arbitrary value to the ExtraHeaders map, initializing it
@@ -96,6 +102,12 @@ func (eo *EncrypterOptions) WithHeader(k HeaderKey, v interface{}) *EncrypterOpt
 // EncrypterOptions.
 func (eo *EncrypterOptions) WithContentType(contentType ContentType) *EncrypterOptions {
 	return eo.WithHeader(HeaderContentType, contentType)
+}
+
+// WithCustomDeriveECDHES sets the function used for ECDH key derivation
+func (eo *EncrypterOptions) WithCustomDeriveECDHES(derive CustomDeriveECDHES) *EncrypterOptions {
+	eo.customDeriveECDHES = derive
+	return eo
 }
 
 // WithType adds a type ("typ") header and returns the updated EncrypterOptions.
@@ -172,10 +184,15 @@ func NewEncrypter(enc ContentEncryption, rcpt Recipient, opts *EncrypterOptions)
 		if typeOf != reflect.TypeOf(&ecdsa.PublicKey{}) {
 			return nil, ErrUnsupportedKeyType
 		}
+		var customDeriveECDHES CustomDeriveECDHES
+		if opts != nil && opts.customDeriveECDHES != nil {
+			customDeriveECDHES = opts.customDeriveECDHES
+		}
 		encrypter.keyGenerator = ecKeyGenerator{
-			size:      encrypter.cipher.keySize(),
-			algID:     string(enc),
-			publicKey: rawKey.(*ecdsa.PublicKey),
+			size:               encrypter.cipher.keySize(),
+			algID:              string(enc),
+			publicKey:          rawKey.(*ecdsa.PublicKey),
+			customDeriveECDHES: customDeriveECDHES,
 		}
 		recipientInfo, _ := newECDHRecipient(rcpt.Algorithm, rawKey.(*ecdsa.PublicKey))
 		recipientInfo.keyID = keyID
@@ -278,7 +295,7 @@ func makeJWERecipient(alg KeyAlgorithm, encryptionKey interface{}) (recipientKey
 }
 
 // newDecrypter creates an appropriate decrypter based on the key type
-func newDecrypter(decryptionKey interface{}) (keyDecrypter, error) {
+func newDecrypter(decryptionKey interface{}, customDeriveECDHES CustomDeriveECDHES) (keyDecrypter, error) {
 	switch decryptionKey := decryptionKey.(type) {
 	case *rsa.PrivateKey:
 		return &rsaDecrypterSigner{
@@ -286,7 +303,8 @@ func newDecrypter(decryptionKey interface{}) (keyDecrypter, error) {
 		}, nil
 	case *ecdsa.PrivateKey:
 		return &ecDecrypterSigner{
-			privateKey: decryptionKey,
+			privateKey:         decryptionKey,
+			customDeriveECDHES: customDeriveECDHES,
 		}, nil
 	case []byte:
 		return &symmetricKeyCipher{
@@ -297,9 +315,9 @@ func newDecrypter(decryptionKey interface{}) (keyDecrypter, error) {
 			key: []byte(decryptionKey),
 		}, nil
 	case JSONWebKey:
-		return newDecrypter(decryptionKey.Key)
+		return newDecrypter(decryptionKey.Key, nil)
 	case *JSONWebKey:
-		return newDecrypter(decryptionKey.Key)
+		return newDecrypter(decryptionKey.Key, nil)
 	}
 	if okd, ok := decryptionKey.(OpaqueKeyDecrypter); ok {
 		return &opaqueKeyDecrypter{decrypter: okd}, nil
@@ -403,10 +421,18 @@ func (ctx *genericEncrypter) Options() EncrypterOptions {
 	}
 }
 
+func (obj JSONWebEncryption) DecryptWithCustomCek(decryptionKey interface{}, customDeriveECDHES CustomDeriveECDHES) ([]byte, error) {
+	return obj.decrypt(decryptionKey, customDeriveECDHES)
+}
+
 // Decrypt and validate the object and return the plaintext. Note that this
 // function does not support multi-recipient, if you desire multi-recipient
 // decryption use DecryptMulti instead.
 func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) {
+	return obj.decrypt(decryptionKey, nil)
+}
+
+func (obj JSONWebEncryption) decrypt(decryptionKey interface{}, customDeriveECDHES CustomDeriveECDHES) ([]byte, error) {
 	headers := obj.mergedHeaders(nil)
 
 	if len(obj.recipients) > 1 {
@@ -422,7 +448,7 @@ func (obj JSONWebEncryption) Decrypt(decryptionKey interface{}) ([]byte, error) 
 		return nil, fmt.Errorf("square/go-jose: unsupported crit header")
 	}
 
-	decrypter, err := newDecrypter(decryptionKey)
+	decrypter, err := newDecrypter(decryptionKey, customDeriveECDHES)
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +508,7 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 		return -1, Header{}, nil, fmt.Errorf("square/go-jose: unsupported crit header")
 	}
 
-	decrypter, err := newDecrypter(decryptionKey)
+	decrypter, err := newDecrypter(decryptionKey, nil)
 	if err != nil {
 		return -1, Header{}, nil, err
 	}
@@ -531,6 +557,9 @@ func (obj JSONWebEncryption) DecryptMulti(decryptionKey interface{}) (int, Heade
 	// The "zip" header parameter may only be present in the protected header.
 	if comp := obj.protected.getCompression(); comp != "" {
 		plaintext, err = decompress(comp, plaintext)
+		if err != nil {
+			return -1, Header{}, nil, err
+		}
 	}
 
 	sanitized, err := headers.sanitized()

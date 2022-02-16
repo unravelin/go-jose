@@ -54,14 +54,16 @@ type edEncrypterVerifier struct {
 
 // A key generator for ECDH-ES
 type ecKeyGenerator struct {
-	size      int
-	algID     string
-	publicKey *ecdsa.PublicKey
+	size               int
+	algID              string
+	publicKey          *ecdsa.PublicKey
+	customDeriveECDHES CustomDeriveECDHES
 }
 
 // A generic EC-based decrypter/signer
 type ecDecrypterSigner struct {
-	privateKey *ecdsa.PrivateKey
+	privateKey         *ecdsa.PrivateKey
+	customDeriveECDHES CustomDeriveECDHES
 }
 
 type edDecrypterSigner struct {
@@ -393,7 +395,12 @@ func (ctx ecKeyGenerator) genKey() ([]byte, rawHeader, error) {
 		return nil, rawHeader{}, err
 	}
 
-	out := josecipher.DeriveECDHES(ctx.algID, []byte{}, []byte{}, priv, ctx.publicKey, ctx.size)
+	var out []byte
+	if ctx.customDeriveECDHES != nil {
+		out = ctx.customDeriveECDHES(ctx.algID, []byte{}, []byte{}, priv, ctx.publicKey, ctx.size)
+	} else {
+		out = josecipher.DeriveECDHES(ctx.algID, []byte{}, []byte{}, priv, ctx.publicKey, ctx.size)
+	}
 
 	b, err := json.Marshal(&JSONWebKey{
 		Key: &priv.PublicKey,
@@ -437,8 +444,16 @@ func (ctx ecDecrypterSigner) decryptKey(headers rawHeader, recipient *recipientI
 		return nil, errors.New("square/go-jose: invalid apv header")
 	}
 
-	deriveKey := func(algID string, size int) []byte {
-		return josecipher.DeriveECDHES(algID, apuData.bytes(), apvData.bytes(), ctx.privateKey, publicKey, size)
+	var deriveKey func(algID string, size int) []byte
+
+	if ctx.customDeriveECDHES != nil {
+		deriveKey = func(algID string, size int) []byte {
+			return ctx.customDeriveECDHES(algID, apuData.bytes(), apvData.bytes(), ctx.privateKey, publicKey, size)
+		}
+	} else {
+		deriveKey = func(algID string, size int) []byte {
+			return josecipher.DeriveECDHES(algID, apuData.bytes(), apvData.bytes(), ctx.privateKey, publicKey, size)
+		}
 	}
 
 	var keySize int
