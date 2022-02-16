@@ -48,6 +48,7 @@ func DeriveECDHES(alg string, apuData, apvData []byte, priv *ecdsa.PrivateKey, p
 
 	z, _ := priv.Curve.ScalarMult(pub.X, pub.Y, priv.D.Bytes())
 	zBytes := z.Bytes()
+
 	// Note that calling z.Bytes() on a big.Int may strip leading zero bytes from
 	// the returned byte array. This can lead to a problem where zBytes will be
 	// shorter than expected which breaks the key derivation. Therefore we must pad
@@ -62,6 +63,7 @@ func DeriveECDHES(alg string, apuData, apvData []byte, priv *ecdsa.PrivateKey, p
 
 	// Read on the KDF will never fail
 	_, _ = reader.Read(key)
+
 	return key
 }
 
