@@ -541,7 +541,6 @@ func TestACSSignedContentExamples(t *testing.T) {
 			roots.AddCert(sdkDSRootCert)
 
 			verifyOpts := x509.VerifyOptions{
-				//DNSName: "RSA Example DS",
 				Roots: roots,
 			}
 
@@ -562,39 +561,92 @@ func TestACSSignedContentExamples(t *testing.T) {
 			verifiedContent, err := obj.Verify(acsPubKey)
 			require.NoError(t, err)
 			require.Equal(t, acsContentStr, string(verifiedContent))
-
-			// x5cArray, ok := sigs.Signatures[0].Protected.ExtraHeaders["x5c"]
-			// require.True(t, ok)
-
-			// //require.Equal(t, 1, len(sigs.Signatures[0].Protected))
-
-			// // must have one cert
-			// base64x5c := x5cArray.([]string)
-			// require.Equal(t, 1, len(base64x5c))
-
-			// // decode x5c
-			// headerCertBytes, err := base64.StdEncoding.DecodeString(base64x5c[0])
-			// require.NoError(t, err)
-
-			// headerCert, err := x509.ParseCertificate(headerCertBytes)
-			// require.NoError(t, err)
-
-			// validate ACS public cert against SDK DS cert
-			// TODO
-
 		})
 	}
 
 }
 
-// ACS Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 59)
-func TestExample7(t *testing.T) {
-	// TODO
-}
+func TestSessionKeyDerivationExamples(t *testing.T) {
 
-// SDK Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 61)
-func TestExample8(t *testing.T) {
-	// TODO
+	tests := []struct {
+		name                    string
+		keyAlg                  KeyAlgorithm
+		ephemeralPublicKeyJSON  string
+		ephemeralPrivateKeyJSON string
+		expectedCek             string
+	}{
+		{
+			name:   "Example 7: ACS Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 59)",
+			keyAlg: ECDH_ES,
+			ephemeralPublicKeyJSON: `{
+				"kty":"EC",
+				"crv":"P-256",
+				"x":"weNJy2HscCSM6AEDTDg04biOvhFhyyWvOHQfeF_PxMQ",
+				"y":"e8lnCO-AlStT-NJVX-crhB7QRYhiix03illJOVAOyck" 
+			}`,
+			ephemeralPrivateKeyJSON: `{
+				"kty":"EC",
+				"crv":"P-256",
+				"x":"gI0GAILBdu7T53akrFmMyGcsF3n5dO7MmwNBHKW5SV0",
+				"y":"SLW_xSffzlPWrHEVI30DHM_4egVwt3NQqeUD7nMFpps",
+				"d":"0_NxaRPUMQoAJt50Gz8YiTr8gRTwyEaCumd-MToTmIo"
+			}`,
+			expectedCek: "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
+		},
+		{
+			name:   "Example 8: SDK Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 61)",
+			keyAlg: ECDH_ES,
+			ephemeralPublicKeyJSON: `{
+				"kty":"EC",
+				"crv":"P-256",
+				"x":"gI0GAILBdu7T53akrFmMyGcsF3n5dO7MmwNBHKW5SV0",
+				"y":"SLW_xSffzlPWrHEVI30DHM_4egVwt3NQqeUD7nMFpps"
+			}`,
+			ephemeralPrivateKeyJSON: `{
+				"kty":"EC",
+				"crv":"P-256",
+				"x":"weNJy2HscCSM6AEDTDg04biOvhFhyyWvOHQfeF_PxMQ",
+				"y":"e8lnCO-AlStT-NJVX-crhB7QRYhiix03illJOVAOyck",
+				"d":"VEmDZpDXXK8p8N0Cndsxs924q6nS1RXFASRl6BfUqdw"
+			}`,
+			expectedCek: "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// init expected keys from JSON representations
+			var ephemeralPrivateKeyJWK JSONWebKey
+			err := ephemeralPrivateKeyJWK.UnmarshalJSON([]byte(tt.ephemeralPrivateKeyJSON))
+			require.NoError(t, err)
+			require.True(t, ephemeralPrivateKeyJWK.Valid())
+
+			var ephemeralPublicKeyJWK JSONWebKey
+			err = ephemeralPublicKeyJWK.UnmarshalJSON([]byte(tt.ephemeralPublicKeyJSON))
+			require.NoError(t, err)
+			require.True(t, ephemeralPublicKeyJWK.Valid())
+
+			// cast keys to real types
+			var ok bool
+			var ephemeralPublicKey *ecdsa.PublicKey
+			ephemeralPublicKey, ok = ephemeralPublicKeyJWK.Key.(*ecdsa.PublicKey)
+			require.True(t, ok)
+
+			var ephemeralPrivateKey *ecdsa.PrivateKey
+			ephemeralPrivateKey, ok = ephemeralPrivateKeyJWK.Key.(*ecdsa.PrivateKey)
+			require.True(t, ok)
+
+			deriveCek := createCustomDeriveECDHES("A Dummy SDK Reference Number")
+
+			cek := deriveCek("", []byte{}, []byte{}, ephemeralPrivateKey, ephemeralPublicKey, 32)
+
+			hexCek := strings.ToUpper(hex.EncodeToString(cek))
+
+			require.Equal(t, tt.expectedCek, hexCek)
+
+		})
+	}
+
 }
 
 // SDK Encryption of CReq and ACS Decryption—Using A128CBC-HS256 (Page 63)

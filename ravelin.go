@@ -7,13 +7,13 @@ import (
 )
 
 // createCustomDeriveECDHES - returns a function for generating cek based on 3DS2 spec
-func createCustomDeriveECDHES(directoryServerID string) func(alg string, apuData, apvData []byte, priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey, size int) []byte {
+func createCustomDeriveECDHES(partyVInfo string) func(alg string, apuData, apvData []byte, priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey, size int) []byte {
 	return func(alg string, apuData, apvData []byte, priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey, size int) []byte {
 		// use an empty algID
 		// use an empty apuData value
-		// use directoryServerID as apv data
+		// use partyVInfo as apv data
 		// pass 32 for key size so full derived key is returned
-		key := josecipher.DeriveECDHES("", []byte{}, []byte(directoryServerID), priv, pub, 32)
+		key := josecipher.DeriveECDHES("", []byte{}, []byte(partyVInfo), priv, pub, 32)
 
 		if size == 16 {
 			// use only first half of key
