@@ -718,7 +718,7 @@ func TestCReqExamples(t *testing.T) {
 
 			input := []byte(tt.creqMessage)
 
-			// encrypt device data
+			// encrypt CReq data
 			obj, err := enc.Encrypt(input)
 			require.NoError(t, err)
 
@@ -748,8 +748,6 @@ func TestCReqExamples(t *testing.T) {
 			require.NoError(t, err)
 
 			var output []byte
-			// decrypt CReq data
-
 			output, err = parsed.Decrypt(cek)
 
 			require.NoError(t, err)
@@ -763,12 +761,111 @@ func TestCReqExamples(t *testing.T) {
 
 }
 
-// ACS Encryption of CRes and SDK Decryption—Using A128CBC-HS256 (Page 71)
-func TestExample11(t *testing.T) {
-	// TODO
-}
+func TestCResExamples(t *testing.T) {
 
-// ACS Encryption of CRes and SDK Decryption—Using A128GCM (Page 82)
-func TestExample12(t *testing.T) {
-	// TODO
+	tests := []struct {
+		name                 string
+		keyAlg               KeyAlgorithm
+		encAlg               ContentEncryption
+		cekHex               string
+		cresMessage          string
+		expectedJwtHeader    string
+		expectedEncryptedKey string
+		expectedVI           string
+		expectedCiphertext   string
+		expectedAuthTag      string
+		ivHex                string
+	}{
+		{
+			name:   "Example 11: ACS Encryption of CRes and SDK Decryption—Using A128CBC-HS256 (Page 71)",
+			keyAlg: DIRECT,
+			encAlg: A128CBC_HS256,
+			cekHex: "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
+			// note: the cres example from the spec still has some whitespace in it so don't reformat the data
+			cresMessage:          `{"threeDSServerTransID":"8a880dc0-d2d2-4067-bcb1-b08d1690b26e","acsTransID":"d7c1ee99-9478-44a6-b1f2-391e29c6b340","uiType":"01","challengeAddInfo":"Additional information to be shown.", "challengeCompletionInd":"N","challengeInfoHeader":"Header information","challengeInfoLabel":"One-time-password","challengeInfoText":"Please enter the received one-time-password","challengeInfoTextIndicator":"N","expandInfoLabel1":"Additional instructions","expandInfoText1":"The issuer will send you via SMS a one-time password. Please enter the value in the designated input field above and press continue to complete the 3-D Secure authentication process.","issuerImage":{"medium":"http://acs.com/medium_image.svg","high":"http://acs.com/high_image.svg","extraHigh":"http://acs.com/extraHigh_image.svg"},"messageType":"CRes","messageVersion":"2.1.0","psImage": {"medium":"http://ds.com/medium_image.svg","high":"http://ds.com/high_image.svg","extraHigh":"http://ds.com/extraHigh_image.svg"},"resendInformationLabel":"Send new One-time-password","sdkTransID":"b2385523-a66c-4907-ac3c-91848e8c0067","submitAuthenticationLabel":"Continue","whyInfoLabel1":"Why using 3-D Secure?","whyInfoText1":"Some explanation about why using 3-D Secure is an excellent idea as part of an online payment transaction","acsCounterAtoS":"001"}`,
+			expectedJwtHeader:    `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2Iiwia2lkIjoiQUNTVHJhbnNhY3Rpb25JRCJ9`,
+			expectedEncryptedKey: ``,
+			expectedVI:           `vpSuy19nBu47yI6uHlk4qQ`,
+			expectedCiphertext:   `JS_NJDX8ePcBexjBDIaZ00Sc5TqZJT32Asb7GCbMwXMgI7JwIgBDXjJukkX177fRw9sXCj-exeRGG2uCncuuCqNpMjUeisYvEmMG2fkWe-y7aGnn86fHvVxsFY_AAex6v_NnFvrRuhWGCQFsHS-9cM8vf4FslS1D4xm_J6Pd3derOob-uLlhReb8OR9mMgL1r99LSb_LHPmWnAuOuSD2FFlAlOxtymW-AJ0AxgBP2Qc0nc-esGmiGE5gmPXGuNU2GzjqWEpBXhEglUk0bvc_b1SiDvl9rVxAlHlj6-X6ihurWgobwjjt22zEJaZgwFPwqcf8eiBCK87K-fGUNYYjYwFnLzkCHKOPf6N1bhgoi7SbHhe_K-q6H8Zyu9LD1nUawwNWLehLMXFO1i7i8k1JcRNATTqZbZ9kbliygI_hBLspMvFl2BgjOBRQ6YXaOswWolNE1ET5Rp1VwvfjvP57xJC4ADCM2rEO4VMSXqs8-9fXuW6FqafBSYA_ilJO1DhfY-8O61vhsrEA1wnXUBtue8kMV417VZhy7ay9_C5R2_TfA8esgc6N5DqmL1COhxaUJarEtiADoZvolD_rJLCRlfbzXD1S63pyEOTGvysduK5yfY-PIIsR0J-nGuLMI3fbahnhlLoc8vVdmExEwuPO_R_vSc9q5xyad3_ltt6BQXxp6mM_Nupp2iVWup4zk6bd1bWIDtm-yo4Y5Zs00vFRAVHXKC7a4mx7HbXqAXVBYQPhUsqC07z-Y9YnyMYYoM6aytOnhnhMOA55kKNGnIQfBCkUZCrlcaovcK8uPHoQf2bv7GfQ0C2d3EBlBu-E3GdHz-uONw3VU_C-9IgBwmKgxDikLHRu7kIcF_MhSEFDT1Y3caNYs4prrewVBKqtuJesKRw_qx1t2lW88nfxXpc7SxlDBMcMc2yKP0xWjje1AjM8y77nYj2RCJzAY8YDc7BdNlOvkQt4YFgAeIVy4_hm3Nr8bsfvmWRBM2L6QeVsbb3K7iwufK6X7Kc8H4NaKPiErQc9ovN4C2oSEkCSAuZBZxWJrRWMAeg0JeMmlp893Qw5-SIH0_tAkEoCgg1r5_jSVwtHHRxItfjigZsUxSS5IjSW_w-ypsRp6r0aZWurpHAVuDT1v8AQl5ATCHOLOX6DeJtm1fDDOpANOLixK317D-IgqpJVW29sTfrW3gP_oSfgNcTOXnOIndFYKZjSPRlho95z2-irymgL83nuX_ATYIOx5jr5S9dG3LIVdCrKcH6QuDx-FBfVioaCzOk5jG9ycWjdR1j27i40Ml8CXfa59j8YLX2m2aDnLFDSfR0XquDf0ohhE80mgS_2ZoNKGvg4jV9biReAvPoKdJf1F5vNcLGakWVhv8lXutWVIP27ZI4aLtdRMjIWvk9m2wq196hTLAPmMzPe646dGXfWwGNKiPt01HeIFdhl32p0c0taKLX_aWXDS0wxq8eA7jXQj9oQenBa-6_JxVzeCVRjwCg8sucr7PWHB_uEcGwynqtSfZJw-Zx_CUVLUf_-EWQampyPobQ0Q_yA3uwGZMmmxS529po9Jw3Y6q4sPwlV-uT_Mb9kyhCXHkgnyra2Hsg_YaP8uVTMeCaxgCdF6UkQglTQPSlG00ERUg6GJq_WC_s_YrrmrePNOUGlnIWefykfWqAth_PEz4A46cNiZsTy5ID4NEdQrr8YR_mMd9AwBF9YTp-BFy0dCn-sNK1NZQE7jMozfFfPt69vCrl69mifrvGdncJy0rGlLAYqF3K6gddgEsM`,
+			expectedAuthTag:      `F1HRk5FJBeOSiTcZGDd-0w`,
+			ivHex:                "BE94AECB5F6706EE3BC88EAE1E5938A9",
+		},
+		{
+			name:   "Example 12: ACS Encryption of CRes and SDK Decryption—Using A128GCM (Page 82)",
+			keyAlg: DIRECT,
+			encAlg: A128GCM,
+			cekHex: "C5D37C30CBEF51D4642A8D1BB22A1C23",
+			// note: the cres example from the spec still has some whitespace in it so don't reformat the data
+			cresMessage:          `{"threeDSServerTransID":"8a880dc0-d2d2-4067-bcb1-b08d1690b26e","acsTransID":"d7c1ee99-9478-44a6-b1f2-391e29c6b340","uiType":"01","challengeAddInfo":"Additional information to be shown.", "challengeCompletionInd":"N","challengeInfoHeader":"Header information","challengeInfoLabel":"One-time-password","challengeInfoText":"Please enter the received one-time-password","challengeInfoTextIndicator":"N","expandInfoLabel1":"Additional instructions","expandInfoText1":"The issuer will send you via SMS a one-time password. Please enter the value in the designated input field above and press continue to complete the 3-D Secure authentication process.","issuerImage":{"medium":"http://acs.com/medium_image.svg","high":"http://acs.com/high_image.svg","extraHigh":"http://acs.com/extraHigh_image.svg"},"messageType":"CRes","messageVersion":"2.1.0","psImage": {"medium":"http://ds.com/medium_image.svg","high":"http://ds.com/high_image.svg","extraHigh":"http://ds.com/extraHigh_image.svg"},"resendInformationLabel":"Send new One-time-password","sdkTransID":"b2385523-a66c-4907-ac3c-91848e8c0067","submitAuthenticationLabel":"Continue","whyInfoLabel1":"Why using 3-D Secure?","whyInfoText1":"Some explanation about why using 3-D Secure is an excellent idea as part of an online payment transaction","acsCounterAtoS":"001"}`,
+			expectedJwtHeader:    `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIiwia2lkIjoiQUNTVHJhbnNhY3Rpb25JRCJ9`,
+			expectedEncryptedKey: ``,
+			expectedVI:           `______________8B`,
+			expectedCiphertext:   `85r0V6__KhxNoaVr_ZHLR6T1Y1AH8aZYmnkCsaDaweRaphUD4IzJlKg4BVge6kwoJLrfMp_eqHQgEZ7S_VxI4p8G_IqsfVotx79FSRQYBdQKvQpZPyEmSVi_tjgbvz20BC03R7GP6UQU81UHEdQOiaoB8AY58fDl6yKSG59If_35EKy5-rN9wWcUQqzrtAV914TIRGIm4EJ-zit30Ma1dIAOhY6q_NrKRTSpRzIzNGv4CdvfZjcvqKD5hLEil0E4E9k7fZ5sjOvie53fO-Qm8xneglQy_MHv4hq-gZW2_G6R8BesmrZ48xzM7vrTiWLmGWcQR_Tthe94ZL2gqhL32liwH8Zp1xiuHrOjCDl_EqakvX5MGDaWVzoKjr10Pun8TzFK9X3O_ukHn87pGUCz1Q9mktRVMhr_JCgtL7AuadDNpwLTiGycGGBk8X-zHaYN3--gGOx66IAJg0J1THedVkeGF5GIvNqo0pmF3XMDz3H7YrX7GsOABf19imeOIigm0CXOEFSJzYsSjwp_k9AepmNfg3JZt0bk9YPfQ7LiVq1rs2OQ_6iK_Mdh4dsx2AdydrOkhcwQ5u7rBkGm3TtaHNJ8fj0V2MD7MFE-QcvTz5ht0-sDCnLNeuglnjXlFXhnw4caim9M5iJD9TW3rMVc2n1X3w4fBUuOlR2ccmyWxTTTMLCIQndXedQdG37QVbx0MlWejzVwVn-3np7z8B8SwUIdnqZlcDgPC3OKszXpeqJrH3f2uwqTcksgJANMrGmLpvtisvvv6VYKV9dH9I2ffU1eU_2Cja9xpSluD8O5uvjnbSXG-Va8-QbLGoyb9EBUtKNFhATj-m45V_A7Pl3QCGllnRXi6Hhk7TiKcdR5Cm6eUKy_akCBpI4csO-6RlCLBV9iW1h6qhBabky74km0yDidzBCKhd0V8_fXTRbITzs9sedZYYImRRNOsT4uxRdxIODBY7t0ZPk87SN-XZtXKuLbdpvxoHNRmlDqHo7JXsrvL22IK1s-q6WrGAsjjIzmb7uVEqZsVGfapInWQYc3HzyBvhSsuo7m7hS8C_KJLUmfU5j3bgOGBO_M-JrFK4QQgjNWXf8zWjbW6RckbDl3EF3gnvck9EWTYnd9sVz8YbaCKvJ8fhIS4kjv8qmusItKuKVxqfDqcf5r8YdPQ6g6Wkt-UozwOUNCmHVx87vu3BL4zpcb2Q3oKXWhtYLyrD2K5OBBmKY5eBd7VcFeSqO0zrMRu6wGLL-Dz_HRkSMbf1fsJyVJRvpUCzvfzksl6GXCaxB-HSlVg-du466WYfUR9ulm2mshyZvPmTNYmMbE_q0eQ93m9bRWazlXFliTY2YNXCa5uH7v63cHIRvH3uwPYJEkhwzx2popm4w8Dzo11w66llwPXh-HMqFq9HXBgqHBM47KaqBaTzVm6YYXhTuJoVY7ON2hR9YKxF6Siw-a-TARtWayfpLZuN0mxO3mRMAaRHgI9lyoKYmLTHiFqb8-Yk279owO555JlwvZRoos96WmD8R8RACo61_MXrohn3Qfc0_A_zPcp0H0KttnYneOINnKL45UMGWpRoJd_iUfR6EId1SdJd8b9XFIbeJT4DcBzPuEbTKgGSrXnu4xJlMcXTbUufNkNKKHKc5jvvBpp1w63dp-4fo667x1gB75HiKn-tgNRox43lNAQlRen4rLb3licM-DBdgHuZtPWWu0c3UNIG_ujMn8V3srIMfjbi6LRyNBgMxIEhnBtASYPucX1w`,
+			expectedAuthTag:      `o31CYMpQGgfk1xpjE-jWbw`,
+			ivHex:                "FFFFFFFFFFFFFFFFFFFFFF01",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			defer resetRandReader()
+
+			// init random values used in encryption process
+			cek, err := hex.DecodeString(tt.cekHex)
+			require.NoError(t, err)
+
+			iv, err := hex.DecodeString(tt.ivHex)
+			require.NoError(t, err)
+
+			// Mock random reader
+			RandReader = bytes.NewReader(iv)
+
+			rcpt := Recipient{Algorithm: tt.keyAlg, Key: cek, KeyID: "ACSTransactionID"}
+
+			enc, err := NewEncrypter(tt.encAlg, rcpt, nil)
+			require.NoError(t, err)
+
+			input := []byte(tt.cresMessage)
+
+			// encrypt CRes data
+			obj, err := enc.Encrypt(input)
+			require.NoError(t, err)
+
+			encryptedCRes, err := obj.CompactSerialize()
+			require.NoError(t, err)
+
+			// split encryptedCRes to check each field
+			parts := strings.Split(encryptedCRes, ".")
+
+			require.Equal(t, 5, len(parts), "encryptedCRes has %d parts, it should have 5")
+
+			jwtHeader := parts[0]
+			encryptedKey := parts[1]
+			initializationVector := parts[2]
+			ciphertext := parts[3]
+			authTag := parts[4]
+
+			// check expected values match
+			require.Equal(t, tt.expectedJwtHeader, jwtHeader)
+			require.Equal(t, tt.expectedVI, initializationVector)
+			require.Equal(t, tt.expectedEncryptedKey, encryptedKey)
+			require.Equal(t, tt.expectedCiphertext, ciphertext)
+			require.Equal(t, tt.expectedAuthTag, authTag)
+
+			// now decrypt CRes as SDK
+			parsed, err := ParseEncrypted(encryptedCRes)
+			require.NoError(t, err)
+
+			var output []byte
+			output, err = parsed.Decrypt(cek)
+
+			require.NoError(t, err)
+
+			// decrypted data should match
+			if !bytes.Equal(input, output) {
+				t.Errorf("Decrypted output does not match input, got '%s' but wanted '%s'", output, input)
+			}
+		})
+	}
+
 }
