@@ -3,9 +3,12 @@ package jose
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -75,6 +78,90 @@ var sdkEphemeralECPrivateKeyJSON = []byte(`{
 var testDirectoryServerID = "A000000802"
 
 var deviceInfoStr = `{"DV":"1.0","DD":{"C001":"Android","C002":"HTC One_M8","C004":"5.0.1","C005":"en_US","C006":"Eastern Standard Time","C007":"06797903-fb61-41ed-94c2-4d2b74e27d18","C009":"John's Android Device"},"DPNA":{"C010":"RE01","C011":"RE03"},"SW":["SW01","SW04"]}`
+var acsContentStr = `{"acsEphemPubKey":{"kty":"EC","crv":"P-256","x":"mPUKT_bAWGHIhg0TpjjqVsP1rXWQu_vwVOHHtNkdYoA","y":"8BQAsImGeAS46fyWw5MhYfGTT0IjBpFw2SS34Dv4Irs"},"sdkEphemPubKey":{"kty":"EC","crv":"P-256","x":"Ze2loSV3wrroKUN_4zhwGhCqo3Xhu1td4QjeQ5wIVR0","y":"HlLtdXARY_f55A3fnzQbPcm6hgr34Mp8p-nuzQCE0Zw"},"acsURL":"http://acsserver.domainname.com"}`
+
+var acsRSAPrivateKeyJSON = []byte(`{
+	"kty":"RSA",
+	"use":"sig",
+	"n":"kNrPIBDXMU6fcyv5i-QHQAQ-K8gsC3HJb7FYhYaw8hXbNJa-t8q0lDKwLZgQXYV-ffWxXJv5GGrlZE4GU52lfMEegTDzYTrRQ3tepgKFjMGg6Iy6fkl1ZNsx2gEonsnlShfzA9GJwRTmtKPbk1s-hwx1IU5AT-AIelNqBgcF2vE5W25_SGGBoaROVdUYxqETDggM1z5cKV4ZjDZ8-lh4oVB07bkac6LQdHpJUUySH_Er20DXx30Kyi97PciXKTS-QKXnmm8ivyRCmux22ZoPUind2BKC5OiG4MwALhaL2Z2k8CsRdfy-7dg7z41Rp6D0ZeEvtaUp4bX4aKraL4rTfw",
+	"e":"AQAB",
+	"d":"ZLe_TIxpE9-W_n2VBa-HWvuYPtjvxwVXClJFOpJsdea8g9RMx34qEOEtnoYc2un3CZ3LtJi-mju5RAT8YSc76YJds3ZVw0UiO8mMBeG6-iOnvgobobNx7K57-xjTJZU72EjOr9kB7z6ZKwDDq7HFyCDhUEcYcHFVc7iL_6TibVhAhOFONWlqlJgEgwVYd0rybNGKifdnpEbwyHoMwY6HM1qvnEFgP7iZ0YzHUT535x6jj4VKcdA7ZduFkhUauysySEW7mxZM6fj1vdjJIy9LD1fIz30Xv4ckoqhKF5GONU6tNmMmNgAD6gIViyEle1PrIxl1tBhCI14bRW-zrpHgAQ",
+	"p": "yKWYoNIAqwMRQlgIBOdT1NIcbDNUUs2Rh-pBaxD_mIkweMt4Mg-0-B2iSYvMrs8horhonV7vxCQagcBAATGW-hAafUehWjxWSH-3KccRM8toL4e0q7M-idRDOBXSoe7Z2-CV2x_ZCY3RP8qp642R13WgXqGDIM4MbUkZSjcY9-c",
+	"q": "uND4o15V30KDzf8vFJw589p1vlQVQ3NEilrinRUPHkkxaAzDzccGgrWMWpGxGFFnNL3w5CqPLeU76-5IVYQq0HwYVl0hVXQHr7sgaGu-483Ad3ENcL23FrOnF45m7_2ooAstJDe49MeLTTQKrSIBl_SKvqpYvfSPTczPcZkh9Kk",
+	"dp": "jmTnEoq2qqa8ouaymjhJSCnsveUXnMQC2gAneQJRQkFqQu-zV2PKPKNbPvKVyiF5b2-L3tM3OW2d2iNDyRUWXlT7V5l0KwPTABSTOnTqAmYChGi8kXXdlhcrtSvXldBakC6saxwI_TzGGY2MVXzc2ZnCvCXHV4qjSxOrfP3pHFU",
+	"dq": "R9FUvU88OVzEkTkXl3-5-WusE4DjHmndeZIlu3rifBdfLpq_P-iWPBbGaq9wzQ1c-J7SzCdJqkEJDv5yd2C7rnZ6kpzwBh_nmL8zscAk1qsunnt9CJGAYz7-sGWy1JGShFazfP52ThB4rlCJ0YuEaQMrIzpY77_oLAhpmDA0hLk",
+	"qi": "S8tC7ZknW6hPITkjcwttQOPLVmRfwirRlFAViuDb8NW9CrV_7F2OqUZCqmzHTYAumwGFHI1WVRep7anleWaJjxC_1b3fq_al4qH3Pe-EKiHg6IMazuRtZLUROcThrExDbF5dYbsciDnfRUWLErZ4N1Be0bnxYuPqxwKd9QZwMo0"
+}`)
+
+var acsECPrivateKeyJSON = []byte(`{
+	"kty":"EC",
+	"crv":"P-256",
+	"x":"36H4sHOgIrtWIObxvXilx3gwlYfYd1TKjdv8idQlhlI",
+	"y":"KnwGPyr56s6jvi23qMRMzMBpOnMtnmgYNlx5l8aYzt0",
+	"d":"6-ySVPXPZBVkZ1t951KFgWL_AQrG_wk9BrmV3v3fs5k"
+}`)
+
+var acsDsRsaCertPEM = `-----BEGIN CERTIFICATE-----
+MIIDeTCCAmGgAwIBAgIQbS4C4BSig7uuJ5uDpeT4WDANBgkqhkiG9w0BAQsFADBH
+MRMwEQYKCZImiZPyLGQBGRYDY29tMRcwFQYKCZImiZPyLGQBGRYHZXhhbXBsZTEX
+MBUGA1UEAwwOUlNBIEV4YW1wbGUgRFMwHhcNMTcxMTIxMTE1NDAyWhcNMjcxMjMx
+MTMzMDAwWjBIMRMwEQYKCZImiZPyLGQBGRYDY29tMRcwFQYKCZImiZPyLGQBGRYH
+ZXhhbXBsZTEYMBYGA1UEAwwPUlNBIEV4YW1wbGUgQUNTMIIBIjANBgkqhkiG9w0B
+AQEFAAOCAQ8AMIIBCgKCAQEAkNrPIBDXMU6fcyv5i+QHQAQ+K8gsC3HJb7FYhYaw
+8hXbNJa+t8q0lDKwLZgQXYV+ffWxXJv5GGrlZE4GU52lfMEegTDzYTrRQ3tepgKF
+jMGg6Iy6fkl1ZNsx2gEonsnlShfzA9GJwRTmtKPbk1s+hwx1IU5AT+AIelNqBgcF
+2vE5W25/SGGBoaROVdUYxqETDggM1z5cKV4ZjDZ8+lh4oVB07bkac6LQdHpJUUyS
+H/Er20DXx30Kyi97PciXKTS+QKXnmm8ivyRCmux22ZoPUind2BKC5OiG4MwALhaL
+2Z2k8CsRdfy+7dg7z41Rp6D0ZeEvtaUp4bX4aKraL4rTfwIDAQABo2AwXjAMBgNV
+HRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQUktwf6ZpTCxjYKw/B
+LW6PeiNX4swwHwYDVR0jBBgwFoAUw4MCnbwD6m2wpnoQ2sND8GryPN4wDQYJKoZI
+hvcNAQELBQADggEBAGuNHxv/BR6j7lCPysm1uhrbjBOqdrhJMR/Id4dB2GtdEScl
+3irGPmXyQ2SncTWhNfsgsKDZWp5Bk7+Otnty0eNUMk3hZEqgYjxhzau048XHbsfG
+voJaMGZZNTwUvTUz2hkkhgpx9yQAKIA2LzFKcgYhelPu4GW5rtEuxu3IS6WYy3D1
+GtF3naEWkjUra8hQOhOl2S+CYHmRd6lGkXykVDajMgd2AJFzXdKLxTt0OYrWDGlU
+SzGACRBCd5xbRmATIldtccaGqDN1cNWv0I/bPN8EpKS6B0WaZcPasItKWpDC85Jw
+1GrDxdhwoKHoxtSG+odiTwB5zLbrn2OsRE5bV7E=
+-----END CERTIFICATE-----`
+
+var acsDsEcCertPEM = `-----BEGIN CERTIFICATE-----
+MIICrTCCAZWgAwIBAgIQbS4C4BSig7uuJ5uDpeT4WTANBgkqhkiG9w0BAQsFADBH
+MRMwEQYKCZImiZPyLGQBGRYDY29tMRcwFQYKCZImiZPyLGQBGRYHZXhhbXBsZTEX
+MBUGA1UEAwwOUlNBIEV4YW1wbGUgRFMwHhcNMTcxMTIxMTU0MzI3WhcNMjcxMjMx
+MTMzMDAwWjBHMRMwEQYKCZImiZPyLGQBGRYDY29tMRcwFQYKCZImiZPyLGQBGRYH
+ZXhhbXBsZTEXMBUGA1UEAwwORUMgRXhhbXBsZSBBQ1MwWTATBgcqhkjOPQIBBggq
+hkjOPQMBBwNCAATfofiwc6Aiu1Yg5vG9eKXHeDCVh9h3VMqN2/yJ1CWGUip8Bj8q
++erOo74tt6jETMzAaTpzLZ5oGDZceZfGmM7do2AwXjAMBgNVHRMBAf8EAjAAMA4G
+A1UdDwEB/wQEAwIHgDAdBgNVHQ4EFgQU0AWtDHR/vlQrRAz4aKgJBlnFjEswHwYD
+VR0jBBgwFoAUw4MCnbwD6m2wpnoQ2sND8GryPN4wDQYJKoZIhvcNAQELBQADggEB
+AEqlERewUCeEttAkC0F16Hjjxfv1Wa8naDmaRL99Q0/qqUN8w0qwpAPF7wn2afLf
+aGd+5uZEb1TNYwV9Aw9L/s3BcSTERIl6OEWn+x7ctOmHy2vv7mitaUrileGodenm
+/faDdy5VgKYj+KsMVM2sNVaekX+T0swACX9B90unZxa6256t2OJ2QV5zu3sYO1N0
+j9v7+yF+Fgx014Nrw7/Xt8ILGF58NxbQhkhkfWSfHtaE5moBAbWRuFTFbkBf45SK
+e0UMiU5Lac9xI0O7XCD+zNB5mws4NO2AYvyxHq9X+a64IhXclXngPQMrUqMoLWI1
+66gRJSvQEWsILIUtx2wsiYs=
+-----END CERTIFICATE-----`
+
+var sdkDsRootCertPEM = `-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIQbS4C4BSig7uuJ5uDpeT4VjANBgkqhkiG9w0BAQsFADBH
+MRMwEQYKCZImiZPyLGQBGRYDY29tMRcwFQYKCZImiZPyLGQBGRYHZXhhbXBsZTEX
+MBUGA1UEAwwOUlNBIEV4YW1wbGUgRFMwHhcNMTcxMTIxMTE0ODQ5WhcNMjcxMjMx
+MTQwMDAwWjBHMRMwEQYKCZImiZPyLGQBGRYDY29tMRcwFQYKCZImiZPyLGQBGRYH
+ZXhhbXBsZTEXMBUGA1UEAwwOUlNBIEV4YW1wbGUgRFMwggEiMA0GCSqGSIb3DQEB
+AQUAA4IBDwAwggEKAoIBAQCfgQ+0A4Jz0CWR5Ac/MdK2ABuCzttNkvBQFl1Hz8q4
+o8Qct3isdVN5P475dXaNGiN02HElZMO813uepDRUSJlAfP8AmZIKkxokxEFIUqsp
+vbCpXAZT82xg5gv5C2JY3aVvNwR7pcLR0CmvnJ1AuseqQceKDdEGit1pnoCP6gEe
+oUQdik97tOl7459V8d3UTpxLozUVlwPU00tgPmUUek8j1tPAmWx17e6EaoLRkK4Q
+eDyWHPA4eu0hBtLQVVtv2Tf61VNTh+D/cv++eJQUArC4IuoqdLYFjB2r+bNKdstj
+uH+qLGhHuOKDf/+RGG5rHBSRHPmJqJCSqBzmAd2s0/nPAgMBAAGjRTBDMBIGA1Ud
+EwEB/wQIMAYBAf8CAQAwDgYDVR0PAQH/BAQDAgEGMB0GA1UdDgQWBBTDgwKdvAPq
+bbCmehDaw0PwavI83jANBgkqhkiG9w0BAQsFAAOCAQEAOUcKqpzNQ6lr0PbDSsns
+D6onfi+8j3TD0xG0zBSf+8G4zs8Zb6vzzQ5qHKgfr4aeen8Pw0cw2KKUJ2dFaBqj
+n3/6/MIZbgaBvXKUbmY8xCxKQ+tOFc3KWIu4pSaO50tMPJjU/lP35bv19AA9vs9M
+TKY2qLf88bmoNYT3W8VSDcB58KBHa7HVIPx7BUUtSyb2N2Jqx5AOiYy4NarhB3hV
+ftkZBmCzi2Qw50KWIgTFYcIVeRTx3Js/F0IuEdgZHBK2gmO7fdM7+QKYm83401vl
+YRNCXfIZ0H9E1V3NddqJuqIutdUajckSzMhXdNCJqfI4FAQAymTWGL3/lZyr/30x
+Fg==
+-----END CERTIFICATE-----`
 
 func TestDerivingECCek(t *testing.T) {
 
@@ -245,7 +332,7 @@ func TestSDKEncDataExamples(t *testing.T) {
 			// split encData to check each field
 			parts := strings.Split(encData, ".")
 
-			require.Equal(t, 5, len(parts), "encData has wrong number of parts")
+			require.Equal(t, 5, len(parts), "encData has %d parts, it should have 5")
 
 			jwtHeader := parts[0]
 			encryptedKey := parts[1]
@@ -331,14 +418,173 @@ func TestSDKEncDataExamples(t *testing.T) {
 
 }
 
-// ACS Signed Content and Validation by SDK—RSA-based Using PS256 (Page 33)
-func TestExample5(t *testing.T) {
-	// TODO
-}
+func TestACSSignedContentExamples(t *testing.T) {
 
-// ACS Signed Content and Validation by SDK—EC-based Using ES256 (Page 48)
-func TestExample6(t *testing.T) {
-	// TODO
+	tests := []struct {
+		name              string
+		sigAlg            SignatureAlgorithm
+		encAlg            ContentEncryption
+		certPbACS         string // this is the cert for the ACS signed by the DS CA that contains the public key for decryption
+		dsRootCert        string
+		acsPrivateKeyJSON []byte // this is the private key that the ACS used to sign the acsSignedContent
+		expectedJwtHeader string
+		expectedPayload   string
+		expectedSignature string
+		saltHex           string
+		decryptRandHex    string
+	}{
+		{
+			name:              "Example 5: ACS Signed Content and Validation by SDK—RSA-based Using PS256 (Page 33)",
+			sigAlg:            PS256,
+			certPbACS:         acsDsRsaCertPEM,
+			dsRootCert:        sdkDsRootCertPEM,
+			acsPrivateKeyJSON: acsRSAPrivateKeyJSON,
+			expectedJwtHeader: `eyJhbGciOiJQUzI1NiIsIng1YyI6WyJNSUlEZVRDQ0FtR2dBd0lCQWdJUWJTNEM0QlNpZzd1dUo1dURwZVQ0V0RBTkJna3Foa2lHOXcwQkFRc0ZBREJITVJNd0VRWUtDWkltaVpQeUxHUUJHUllEWTI5dE1SY3dGUVlLQ1pJbWlaUHlMR1FCR1JZSFpYaGhiWEJzWlRFWE1CVUdBMVVFQXd3T1VsTkJJRVY0WVcxd2JHVWdSRk13SGhjTk1UY3hNVEl4TVRFMU5EQXlXaGNOTWpjeE1qTXhNVE16TURBd1dqQklNUk13RVFZS0NaSW1pWlB5TEdRQkdSWURZMjl0TVJjd0ZRWUtDWkltaVpQeUxHUUJHUllIWlhoaGJYQnNaVEVZTUJZR0ExVUVBd3dQVWxOQklFVjRZVzF3YkdVZ1FVTlRNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQWtOclBJQkRYTVU2ZmN5djVpK1FIUUFRK0s4Z3NDM0hKYjdGWWhZYXc4aFhiTkphK3Q4cTBsREt3TFpnUVhZVitmZld4WEp2NUdHcmxaRTRHVTUybGZNRWVnVER6WVRyUlEzdGVwZ0tGak1HZzZJeTZma2wxWk5zeDJnRW9uc25sU2hmekE5R0p3UlRtdEtQYmsxcytod3gxSVU1QVQrQUllbE5xQmdjRjJ2RTVXMjUvU0dHQm9hUk9WZFVZeHFFVERnZ00xejVjS1Y0WmpEWjgrbGg0b1ZCMDdia2FjNkxRZEhwSlVVeVNIL0VyMjBEWHgzMEt5aTk3UGNpWEtUUytRS1hubW04aXZ5UkNtdXgyMlpvUFVpbmQyQktDNU9pRzRNd0FMaGFMMloyazhDc1JkZnkrN2RnN3o0MVJwNkQwWmVFdnRhVXA0Ylg0YUtyYUw0clRmd0lEQVFBQm8yQXdYakFNQmdOVkhSTUJBZjhFQWpBQU1BNEdBMVVkRHdFQi93UUVBd0lIZ0RBZEJnTlZIUTRFRmdRVWt0d2Y2WnBUQ3hqWUt3L0JMVzZQZWlOWDRzd3dId1lEVlIwakJCZ3dGb0FVdzRNQ25id0Q2bTJ3cG5vUTJzTkQ4R3J5UE40d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFHdU5IeHYvQlI2ajdsQ1B5c20xdWhyYmpCT3FkcmhKTVIvSWQ0ZEIyR3RkRVNjbDNpckdQbVh5UTJTbmNUV2hOZnNnc0tEWldwNUJrNytPdG50eTBlTlVNazNoWkVxZ1lqeGh6YXUwNDhYSGJzZkd2b0phTUdaWk5Ud1V2VFV6Mmhra2hncHg5eVFBS0lBMkx6RktjZ1loZWxQdTRHVzVydEV1eHUzSVM2V1l5M0QxR3RGM25hRVdralVyYThoUU9oT2wyUytDWUhtUmQ2bEdrWHlrVkRhak1nZDJBSkZ6WGRLTHhUdDBPWXJXREdsVVN6R0FDUkJDZDV4YlJtQVRJbGR0Y2NhR3FETjFjTld2MEkvYlBOOEVwS1M2QjBXYVpjUGFzSXRLV3BEQzg1SncxR3JEeGRod29LSG94dFNHK29kaVR3QjV6TGJybjJPc1JFNWJWN0U9Il19`,
+			// Note expectedPayload value differs from value in spec
+			// value in spec is invalid as it uses non-standard quote characters and trailing commas which creates invalid JSON
+			expectedPayload:   `eyJhY3NFcGhlbVB1YktleSI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6Im1QVUtUX2JBV0dISWhnMFRwampxVnNQMXJYV1F1X3Z3Vk9ISHROa2RZb0EiLCJ5IjoiOEJRQXNJbUdlQVM0NmZ5V3c1TWhZZkdUVDBJakJwRncyU1MzNER2NElycyJ9LCJzZGtFcGhlbVB1YktleSI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IlplMmxvU1Yzd3Jyb0tVTl80emh3R2hDcW8zWGh1MXRkNFFqZVE1d0lWUjAiLCJ5IjoiSGxMdGRYQVJZX2Y1NUEzZm56UWJQY202aGdyMzRNcDhwLW51elFDRTBadyJ9LCJhY3NVUkwiOiJodHRwOi8vYWNzc2VydmVyLmRvbWFpbm5hbWUuY29tIn0`,
+			expectedSignature: `gZKap_1TNhW0ptVQI3Hj5Qbz-1KKwbRW0RC0hOQcbVxtRsAj2kj2Au-aj7Y1yoCB4M0w0KpjbnOKLDSc19btArmxfuIZeTA2nlVtlHe0OqCwh7vPaoyKcBqCP2veq89z8HgdYudwmvVixV0ASm5F_LVaSvhaYMtDSnRLcZmriNDlaHqyyvr1rKUz0opvpknaBalhzX33lloc9-ONKYzL-LDm53wPzdwmfm5y_8B0NE-6y4Hj-CQxYMqi6iaAQu26ucnTBBaqUgoQ2EhkjmffKUug0coiCC5DYkp1E0xOGlEiPuAkMusgdyFRshIHw8EIJcAtyw9kR0zZdlvCeS3dTw`,
+			saltHex:           "0000000000000000000000000000000000000000000000000000000000000001",
+			decryptRandHex:    "00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000009000000000000000000000000000000000000000000000000000000000000000A",
+		},
+		{
+			name:              "Example 6: ACS Signed Content and Validation by SDK—EC-based Using ES256 (Page 48)",
+			sigAlg:            ES256,
+			certPbACS:         acsDsEcCertPEM,
+			dsRootCert:        sdkDsRootCertPEM,
+			acsPrivateKeyJSON: acsECPrivateKeyJSON,
+			expectedJwtHeader: `eyJhbGciOiJFUzI1NiIsIng1YyI6WyJNSUlDclRDQ0FaV2dBd0lCQWdJUWJTNEM0QlNpZzd1dUo1dURwZVQ0V1RBTkJna3Foa2lHOXcwQkFRc0ZBREJITVJNd0VRWUtDWkltaVpQeUxHUUJHUllEWTI5dE1SY3dGUVlLQ1pJbWlaUHlMR1FCR1JZSFpYaGhiWEJzWlRFWE1CVUdBMVVFQXd3T1VsTkJJRVY0WVcxd2JHVWdSRk13SGhjTk1UY3hNVEl4TVRVME16STNXaGNOTWpjeE1qTXhNVE16TURBd1dqQkhNUk13RVFZS0NaSW1pWlB5TEdRQkdSWURZMjl0TVJjd0ZRWUtDWkltaVpQeUxHUUJHUllIWlhoaGJYQnNaVEVYTUJVR0ExVUVBd3dPUlVNZ1JYaGhiWEJzWlNCQlExTXdXVEFUQmdjcWhrak9QUUlCQmdncWhrak9QUU1CQndOQ0FBVGZvZml3YzZBaXUxWWc1dkc5ZUtYSGVEQ1ZoOWgzVk1xTjIveUoxQ1dHVWlwOEJqOHErZXJPbzc0dHQ2akVUTXpBYVRwekxaNW9HRFpjZVpmR21NN2RvMkF3WGpBTUJnTlZIUk1CQWY4RUFqQUFNQTRHQTFVZER3RUIvd1FFQXdJSGdEQWRCZ05WSFE0RUZnUVUwQVd0REhSL3ZsUXJSQXo0YUtnSkJsbkZqRXN3SHdZRFZSMGpCQmd3Rm9BVXc0TUNuYndENm0yd3Bub1Eyc05EOEdyeVBONHdEUVlKS29aSWh2Y05BUUVMQlFBRGdnRUJBRXFsRVJld1VDZUV0dEFrQzBGMTZIamp4ZnYxV2E4bmFEbWFSTDk5UTAvcXFVTjh3MHF3cEFQRjd3bjJhZkxmYUdkKzV1WkViMVROWXdWOUF3OUwvczNCY1NURVJJbDZPRVduK3g3Y3RPbUh5MnZ2N21pdGFVcmlsZUdvZGVubS9mYURkeTVWZ0tZaitLc01WTTJzTlZhZWtYK1Qwc3dBQ1g5QjkwdW5aeGE2MjU2dDJPSjJRVjV6dTNzWU8xTjBqOXY3K3lGK0ZneDAxNE5ydzcvWHQ4SUxHRjU4TnhiUWhraGtmV1NmSHRhRTVtb0JBYldSdUZURmJrQmY0NVNLZTBVTWlVNUxhYzl4STBPN1hDRCt6TkI1bXdzNE5PMkFZdnl4SHE5WCthNjRJaFhjbFhuZ1BRTXJVcU1vTFdJMTY2Z1JKU3ZRRVdzSUxJVXR4MndzaVlzPSJdfQ`,
+			// Note expectedPayload value differs from value in spec
+			// value in spec is invalid as it uses trailing commas which creates invalid JSON
+			expectedPayload:   `eyJhY3NFcGhlbVB1YktleSI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6Im1QVUtUX2JBV0dISWhnMFRwampxVnNQMXJYV1F1X3Z3Vk9ISHROa2RZb0EiLCJ5IjoiOEJRQXNJbUdlQVM0NmZ5V3c1TWhZZkdUVDBJakJwRncyU1MzNER2NElycyJ9LCJzZGtFcGhlbVB1YktleSI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IlplMmxvU1Yzd3Jyb0tVTl80emh3R2hDcW8zWGh1MXRkNFFqZVE1d0lWUjAiLCJ5IjoiSGxMdGRYQVJZX2Y1NUEzZm56UWJQY202aGdyMzRNcDhwLW51elFDRTBadyJ9LCJhY3NVUkwiOiJodHRwOi8vYWNzc2VydmVyLmRvbWFpbm5hbWUuY29tIn0`,
+			expectedSignature: `tqYNdHiSULdehmGBZw-xP2NHL-1ouSKiA5TQvucZEOUVLyVHh9VfJJTnyasbIvNY7TI0dvFjpasHZ-BwK7CDMQ`,
+			saltHex:           "0000000000000000000000000000000000000000000000000000000000000001",
+			decryptRandHex:    "00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000009000000000000000000000000000000000000000000000000000000000000000A",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			var acsPrivateJWK JSONWebKey
+			err := acsPrivateJWK.UnmarshalJSON(tt.acsPrivateKeyJSON)
+			require.NoError(t, err)
+			require.True(t, acsPrivateJWK.Valid())
+
+			// setup randReader
+			defer resetRandReader()
+
+			// init random values used in signing process
+			salt, err := hex.DecodeString(tt.saltHex)
+			require.NoError(t, err)
+			decryptRand, err := hex.DecodeString(tt.decryptRandHex)
+			require.NoError(t, err)
+
+			// Mock random reader
+			buffer := append(salt, decryptRand...)
+			RandReader = bytes.NewReader(buffer)
+
+			// parse DS cert to attach to x5c header
+			block, _ := pem.Decode([]byte(tt.certPbACS))
+			if block == nil {
+				t.Fatalf("failed to parse certificate PEM")
+			}
+			cert, err := x509.ParseCertificate(block.Bytes)
+			require.NoError(t, err)
+
+			fmt.Printf("TEMP: cert pubkey: %#v\n", cert.PublicKey)
+
+			signerOpts := &SignerOptions{
+				ExtraHeaders: map[HeaderKey]interface{}{
+					"x5c": []string{base64.StdEncoding.EncodeToString(cert.Raw)},
+				},
+			}
+
+			signer, err := NewSigner(SigningKey{Algorithm: tt.sigAlg, Key: acsPrivateJWK.Key}, signerOpts)
+			require.NoError(t, err)
+
+			input := []byte(acsContentStr)
+			obj, err := signer.Sign(input)
+			require.NoError(t, err)
+
+			acsSignedContent, err := obj.CompactSerialize()
+			require.NoError(t, err)
+
+			// split acsSignedContent to check each field
+			parts := strings.Split(acsSignedContent, ".")
+
+			require.Equal(t, 3, len(parts), "acsSignedContent has %d parts, it should have 3")
+
+			jwtHeader := parts[0]
+			payload := parts[1]
+			signature := parts[2]
+
+			// check expected values match
+			require.Equal(t, tt.expectedJwtHeader, jwtHeader)
+			require.Equal(t, tt.expectedPayload, payload)
+			require.Equal(t, tt.expectedSignature, signature)
+
+			// parse DS cert known to the SDK
+			block, _ = pem.Decode([]byte(tt.dsRootCert))
+			if block == nil {
+				t.Fatalf("failed to parse certificate PEM")
+			}
+
+			sigs, err := ParseSigned(acsSignedContent)
+			require.NoError(t, err)
+
+			require.Equal(t, 1, len(sigs.Signatures))
+
+			sdkDSRootCert, err := x509.ParseCertificate(block.Bytes)
+			require.NoError(t, err)
+
+			roots := x509.NewCertPool()
+			roots.AddCert(sdkDSRootCert)
+
+			verifyOpts := x509.VerifyOptions{
+				//DNSName: "RSA Example DS",
+				Roots: roots,
+			}
+
+			certChain, err := sigs.Signatures[0].Protected.Certificates(verifyOpts)
+			require.NoError(t, err)
+			require.NotNil(t, certChain)
+
+			var acsPubKey interface{}
+			for _, certs := range certChain {
+				for _, cert := range certs {
+					if !cert.IsCA {
+						acsPubKey = cert.PublicKey
+					}
+				}
+			}
+
+			// verify with public key in header
+			verifiedContent, err := obj.Verify(acsPubKey)
+			require.NoError(t, err)
+			require.Equal(t, acsContentStr, string(verifiedContent))
+
+			// x5cArray, ok := sigs.Signatures[0].Protected.ExtraHeaders["x5c"]
+			// require.True(t, ok)
+
+			// //require.Equal(t, 1, len(sigs.Signatures[0].Protected))
+
+			// // must have one cert
+			// base64x5c := x5cArray.([]string)
+			// require.Equal(t, 1, len(base64x5c))
+
+			// // decode x5c
+			// headerCertBytes, err := base64.StdEncoding.DecodeString(base64x5c[0])
+			// require.NoError(t, err)
+
+			// headerCert, err := x509.ParseCertificate(headerCertBytes)
+			// require.NoError(t, err)
+
+			// validate ACS public cert against SDK DS cert
+			// TODO
+
+		})
+	}
+
 }
 
 // ACS Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 59)
