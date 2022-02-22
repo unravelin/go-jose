@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -76,6 +75,7 @@ var sdkEphemeralECPrivateKeyJSON = []byte(`{
 }`)
 
 var testDirectoryServerID = "A000000802"
+var dummySDKRefNumber = "A Dummy SDK Reference Number"
 
 var deviceInfoStr = `{"DV":"1.0","DD":{"C001":"Android","C002":"HTC One_M8","C004":"5.0.1","C005":"en_US","C006":"Eastern Standard Time","C007":"06797903-fb61-41ed-94c2-4d2b74e27d18","C009":"John's Android Device"},"DPNA":{"C010":"RE01","C011":"RE03"},"SW":["SW01","SW04"]}`
 var acsContentStr = `{"acsEphemPubKey":{"kty":"EC","crv":"P-256","x":"mPUKT_bAWGHIhg0TpjjqVsP1rXWQu_vwVOHHtNkdYoA","y":"8BQAsImGeAS46fyWw5MhYfGTT0IjBpFw2SS34Dv4Irs"},"sdkEphemPubKey":{"kty":"EC","crv":"P-256","x":"Ze2loSV3wrroKUN_4zhwGhCqo3Xhu1td4QjeQ5wIVR0","y":"HlLtdXARY_f55A3fnzQbPcm6hgr34Mp8p-nuzQCE0Zw"},"acsURL":"http://acsserver.domainname.com"}`
@@ -162,6 +162,38 @@ ftkZBmCzi2Qw50KWIgTFYcIVeRTx3Js/F0IuEdgZHBK2gmO7fdM7+QKYm83401vl
 YRNCXfIZ0H9E1V3NddqJuqIutdUajckSzMhXdNCJqfI4FAQAymTWGL3/lZyr/30x
 Fg==
 -----END CERTIFICATE-----`
+
+// the --Ex7-- keys are used together in Diffie-Hellman
+var sdkEphemeralPublicKeyEx7JSON = `{
+	"kty":"EC",
+	"crv":"P-256",
+	"x":"weNJy2HscCSM6AEDTDg04biOvhFhyyWvOHQfeF_PxMQ",
+	"y":"e8lnCO-AlStT-NJVX-crhB7QRYhiix03illJOVAOyck" 
+}`
+
+var acsEphemeralPrivateKeyEx7JSON = `{
+	"kty":"EC",
+	"crv":"P-256",
+	"x":"gI0GAILBdu7T53akrFmMyGcsF3n5dO7MmwNBHKW5SV0",
+	"y":"SLW_xSffzlPWrHEVI30DHM_4egVwt3NQqeUD7nMFpps",
+	"d":"0_NxaRPUMQoAJt50Gz8YiTr8gRTwyEaCumd-MToTmIo"
+}`
+
+// the --Ex8-- keys are used together in Diffie-Hellman
+var acsEphemeralPublicKeyEx8JSON = `{
+	"kty":"EC",
+	"crv":"P-256",
+	"x":"gI0GAILBdu7T53akrFmMyGcsF3n5dO7MmwNBHKW5SV0",
+	"y":"SLW_xSffzlPWrHEVI30DHM_4egVwt3NQqeUD7nMFpps"
+}`
+
+var sdkEphemeralPrivateEx8KeyJSON = `{
+	"kty":"EC",
+	"crv":"P-256",
+	"x":"weNJy2HscCSM6AEDTDg04biOvhFhyyWvOHQfeF_PxMQ",
+	"y":"e8lnCO-AlStT-NJVX-crhB7QRYhiix03illJOVAOyck",
+	"d":"VEmDZpDXXK8p8N0Cndsxs924q6nS1RXFASRl6BfUqdw"
+}`
 
 func TestDerivingECCek(t *testing.T) {
 
@@ -326,9 +358,6 @@ func TestSDKEncDataExamples(t *testing.T) {
 			encData, err := obj.CompactSerialize()
 			require.NoError(t, err)
 
-			parsed, err := ParseEncrypted(encData)
-			require.NoError(t, err)
-
 			// split encData to check each field
 			parts := strings.Split(encData, ".")
 
@@ -361,6 +390,9 @@ func TestSDKEncDataExamples(t *testing.T) {
 			require.Equal(t, tt.expectedCiphertext, ciphertext)
 			require.Equal(t, tt.expectedAuthTag, authTag)
 
+			parsed, err := ParseEncrypted(encData)
+			require.NoError(t, err)
+
 			var output []byte
 			// decrypt device data
 			if tt.customDeriveECDHES != nil {
@@ -381,9 +413,6 @@ func TestSDKEncDataExamples(t *testing.T) {
 			// This check proves that if we are given the encData value we can decrypt it as expected
 
 			expectedOutput := []byte(deviceInfoStr)
-
-			parsed, err = ParseEncrypted(encData)
-			require.NoError(t, err)
 
 			// split encData to check each field
 			parts = strings.Split(tt.encDataFromSpec, ".")
@@ -491,8 +520,6 @@ func TestACSSignedContentExamples(t *testing.T) {
 			cert, err := x509.ParseCertificate(block.Bytes)
 			require.NoError(t, err)
 
-			fmt.Printf("TEMP: cert pubkey: %#v\n", cert.PublicKey)
-
 			signerOpts := &SignerOptions{
 				ExtraHeaders: map[HeaderKey]interface{}{
 					"x5c": []string{base64.StdEncoding.EncodeToString(cert.Raw)},
@@ -576,40 +603,18 @@ func TestSessionKeyDerivationExamples(t *testing.T) {
 		expectedCek             string
 	}{
 		{
-			name:   "Example 7: ACS Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 59)",
-			keyAlg: ECDH_ES,
-			ephemeralPublicKeyJSON: `{
-				"kty":"EC",
-				"crv":"P-256",
-				"x":"weNJy2HscCSM6AEDTDg04biOvhFhyyWvOHQfeF_PxMQ",
-				"y":"e8lnCO-AlStT-NJVX-crhB7QRYhiix03illJOVAOyck" 
-			}`,
-			ephemeralPrivateKeyJSON: `{
-				"kty":"EC",
-				"crv":"P-256",
-				"x":"gI0GAILBdu7T53akrFmMyGcsF3n5dO7MmwNBHKW5SV0",
-				"y":"SLW_xSffzlPWrHEVI30DHM_4egVwt3NQqeUD7nMFpps",
-				"d":"0_NxaRPUMQoAJt50Gz8YiTr8gRTwyEaCumd-MToTmIo"
-			}`,
-			expectedCek: "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
+			name:                    "Example 7: ACS Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 59)",
+			keyAlg:                  ECDH_ES,
+			ephemeralPublicKeyJSON:  sdkEphemeralPublicKeyEx7JSON,
+			ephemeralPrivateKeyJSON: acsEphemeralPrivateKeyEx7JSON,
+			expectedCek:             "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
 		},
 		{
-			name:   "Example 8: SDK Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 61)",
-			keyAlg: ECDH_ES,
-			ephemeralPublicKeyJSON: `{
-				"kty":"EC",
-				"crv":"P-256",
-				"x":"gI0GAILBdu7T53akrFmMyGcsF3n5dO7MmwNBHKW5SV0",
-				"y":"SLW_xSffzlPWrHEVI30DHM_4egVwt3NQqeUD7nMFpps"
-			}`,
-			ephemeralPrivateKeyJSON: `{
-				"kty":"EC",
-				"crv":"P-256",
-				"x":"weNJy2HscCSM6AEDTDg04biOvhFhyyWvOHQfeF_PxMQ",
-				"y":"e8lnCO-AlStT-NJVX-crhB7QRYhiix03illJOVAOyck",
-				"d":"VEmDZpDXXK8p8N0Cndsxs924q6nS1RXFASRl6BfUqdw"
-			}`,
-			expectedCek: "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
+			name:                    "Example 8: SDK Diffie-Hellman and Session Key Derivation—EC-based Using ECDH-ES (Page 61)",
+			keyAlg:                  ECDH_ES,
+			ephemeralPublicKeyJSON:  acsEphemeralPublicKeyEx8JSON,
+			ephemeralPrivateKeyJSON: sdkEphemeralPrivateEx8KeyJSON,
+			expectedCek:             "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
 		},
 	}
 	for _, tt := range tests {
@@ -636,7 +641,7 @@ func TestSessionKeyDerivationExamples(t *testing.T) {
 			ephemeralPrivateKey, ok = ephemeralPrivateKeyJWK.Key.(*ecdsa.PrivateKey)
 			require.True(t, ok)
 
-			deriveCek := createCustomDeriveECDHES("A Dummy SDK Reference Number")
+			deriveCek := createCustomDeriveECDHES(dummySDKRefNumber)
 
 			cek := deriveCek("", []byte{}, []byte{}, ephemeralPrivateKey, ephemeralPublicKey, 32)
 
@@ -649,14 +654,113 @@ func TestSessionKeyDerivationExamples(t *testing.T) {
 
 }
 
-// SDK Encryption of CReq and ACS Decryption—Using A128CBC-HS256 (Page 63)
-func TestExample9(t *testing.T) {
-	// TODO
-}
+func TestCReqExamples(t *testing.T) {
 
-// SDK Encryption of CReq and ACS Decryption—Using A128GCM (Page 68)
-func TestExample10(t *testing.T) {
-	// TODO
+	tests := []struct {
+		name                 string
+		keyAlg               KeyAlgorithm
+		encAlg               ContentEncryption
+		cekHex               string
+		creqMessage          string
+		expectedJwtHeader    string
+		expectedEncryptedKey string
+		expectedVI           string
+		expectedCiphertext   string
+		expectedAuthTag      string
+		ivHex                string
+	}{
+		{
+			name:                 "Example 9: SDK Encryption of CReq and ACS Decryption—Using A128CBC-HS256 (Page 63)",
+			keyAlg:               DIRECT,
+			encAlg:               A128CBC_HS256,
+			cekHex:               "4B57071C56A1393B613B05948621D2FAC5D37C30CBEF51D4642A8D1BB22A1C23",
+			creqMessage:          `{"threeDSServerTransID":"8a880dc0-d2d2-4067-bcb1-b08d1690b26e","acsTransID":"d7c1ee99-9478-44a6-b1f2-391e29c6b340","messageType":"CReq","messageVersion":"2.1.0","sdkTransID":"b2385523-a66c-4907-ac3c-91848e8c0067","sdkCounterStoA":"001"}`,
+			expectedJwtHeader:    `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2Iiwia2lkIjoiQUNTVHJhbnNhY3Rpb25JRCJ9`,
+			expectedEncryptedKey: ``,
+			expectedVI:           `MduEJ9zyW-6myF0OP2Zf6g`,
+			expectedCiphertext:   `Ek1a4hfYBjURaVUrp1BDJqbKVIGuBKPnE0Orb7Ltt9yZHrLI4XgwZ901R9Z70cV5k-KA1-I2EJAbaVmamVYISgJdPv3sacBBb0Iwy7xgat7sRk0SX8dT-7pdlppNgfmJtzghzSyRoDVYiASELFqp58txyAVBsYupS7-dwW4xhJx6r6gionbxwhTQFkJ-pi1L0KRMp6pKJ91XSel9SJ-ncM0OKSsl6puURzU15e2g4Pl-Fg5xyzymGyDIcTDdHrifWJLh3kaDx7g3Gx8R3j-5cTtK0I95KKCg8vcoKbCrlDoBAzIfRFbV3xugnDWnXG47`,
+			expectedAuthTag:      `w7K8tTaNlDe4gdYk5D80-w`,
+			ivHex:                "31DB8427DCF25BEEA6C85D0E3F665FEA",
+		},
+		{
+			name:                 "Example 10: SDK Encryption of CReq and ACS Decryption—Using A128GCM (Page 68)",
+			keyAlg:               DIRECT,
+			encAlg:               A128GCM,
+			cekHex:               "4B57071C56A1393B613B05948621D2FA",
+			creqMessage:          `{"threeDSServerTransID":"8a880dc0-d2d2-4067-bcb1-b08d1690b26e","acsTransID":"d7c1ee99-9478-44a6-b1f2-391e29c6b340","messageType":"CReq","messageVersion":"2.1.0","sdkTransID":"b2385523-a66c-4907-ac3c-91848e8c0067","sdkCounterStoA":"001"}`,
+			expectedJwtHeader:    `eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4R0NNIiwia2lkIjoiQUNTVHJhbnNhY3Rpb25JRCJ9`,
+			expectedEncryptedKey: ``,
+			expectedVI:           `AAAAAAAAAAAAAAAB`,
+			expectedCiphertext:   `nOYtGTrUX4UueQeIS5JAvA2HinGcprqFzOjjgeK3zgVngx6K99BXJngIocxElx5R1HhCqBftV4GMjp084HcmCC4VSceEKS9ko3_7W76trbTuwcSsT-CGL30BQiNSvA8skt3e57bjjx7_hYd2kQ6jc2ODI6pdrzSCEbT9znOLXmEclWCqaejvWy2z4ZDypnc0O3vLz4VwOtRckk10QoXAqAMfD3DSDLkd0aD0xn6B3G44t8VbRwlhvKafhZt3svqDXhz1SFU2PKNPmmKzLDShtm_7iX-2O7vZb8jQJGN5uyBo81QPmR7-6dfuxG8`,
+			expectedAuthTag:      `VewWjSnOG40Bh-sArISbBQ`,
+			ivHex:                "000000000000000000000001",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			defer resetRandReader()
+
+			// init random values used in encryption process
+			cek, err := hex.DecodeString(tt.cekHex)
+			require.NoError(t, err)
+
+			iv, err := hex.DecodeString(tt.ivHex)
+			require.NoError(t, err)
+
+			// Mock random reader
+			RandReader = bytes.NewReader(iv)
+
+			rcpt := Recipient{Algorithm: tt.keyAlg, Key: cek, KeyID: "ACSTransactionID"}
+
+			enc, err := NewEncrypter(tt.encAlg, rcpt, nil)
+			require.NoError(t, err)
+
+			input := []byte(tt.creqMessage)
+
+			// encrypt device data
+			obj, err := enc.Encrypt(input)
+			require.NoError(t, err)
+
+			encryptedCReq, err := obj.CompactSerialize()
+			require.NoError(t, err)
+
+			// split encryptedCReq to check each field
+			parts := strings.Split(encryptedCReq, ".")
+
+			require.Equal(t, 5, len(parts), "encryptedCReq has %d parts, it should have 5")
+
+			jwtHeader := parts[0]
+			encryptedKey := parts[1]
+			initializationVector := parts[2]
+			ciphertext := parts[3]
+			authTag := parts[4]
+
+			// check expected values match
+			require.Equal(t, tt.expectedJwtHeader, jwtHeader)
+			require.Equal(t, tt.expectedVI, initializationVector)
+			require.Equal(t, tt.expectedEncryptedKey, encryptedKey)
+			require.Equal(t, tt.expectedCiphertext, ciphertext)
+			require.Equal(t, tt.expectedAuthTag, authTag)
+
+			// now decrypt CReq as ACS
+			parsed, err := ParseEncrypted(encryptedCReq)
+			require.NoError(t, err)
+
+			var output []byte
+			// decrypt CReq data
+
+			output, err = parsed.Decrypt(cek)
+
+			require.NoError(t, err)
+
+			// decrypted data should match
+			if !bytes.Equal(input, output) {
+				t.Errorf("Decrypted output does not match input, got '%s' but wanted '%s'", output, input)
+			}
+		})
+	}
+
 }
 
 // ACS Encryption of CRes and SDK Decryption—Using A128CBC-HS256 (Page 71)
