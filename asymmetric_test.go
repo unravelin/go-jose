@@ -120,6 +120,29 @@ func TestPKCSKeyGeneratorFailure(t *testing.T) {
 	}
 }
 
+func TestCustomECKeyGen(t *testing.T) {
+	// test this custom function to derive keys is called.
+	custfn := func(alg string, apuData, apvData []byte, priv *ecdsa.PrivateKey, pub *ecdsa.PublicKey, size int) []byte {
+		return []byte("custom function value")
+	}
+
+	gen := ecKeyGenerator{
+		size:               16,
+		algID:              "A128GCM",
+		publicKey:          &ecTestKey256.PublicKey,
+		customDeriveECDHES: custfn,
+	}
+
+	out, _, err := gen.genKey()
+	if err != nil {
+		t.Error("ec key generator failed to generate key", err)
+	}
+
+	if string(out) != "custom function value" {
+		t.Error("customDeriveECDHES function was not called")
+	}
+}
+
 func TestInvalidAlgorithmsEC(t *testing.T) {
 	_, err := newECDHRecipient("XYZ", nil)
 	if err != ErrUnsupportedAlgorithm {
