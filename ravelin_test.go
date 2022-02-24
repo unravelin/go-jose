@@ -346,7 +346,7 @@ func TestSDKEncDataExamples(t *testing.T) {
 
 			rcpt := Recipient{Algorithm: tt.keyAlg, Key: dsPrivateJWK.Public().Key}
 
-			enc, err := NewEncrypter(tt.encAlg, rcpt, &EncrypterOptions{Compression: NONE, customDeriveECDHES: tt.customDeriveECDHES})
+			enc, err := NewEncrypter(tt.encAlg, rcpt, &EncrypterOptions{Compression: NONE, CustomDeriveECDHES: tt.customDeriveECDHES})
 			require.NoError(t, err)
 
 			input := []byte(deviceInfoStr)

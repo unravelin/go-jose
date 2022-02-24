@@ -85,7 +85,7 @@ type EncrypterOptions struct {
 	ExtraHeaders map[HeaderKey]interface{}
 
 	// For ECDH-ES this is an optional function to generate a custom cek
-	customDeriveECDHES CustomDeriveECDHES
+	CustomDeriveECDHES CustomDeriveECDHES
 }
 
 // WithHeader adds an arbitrary value to the ExtraHeaders map, initializing it
@@ -106,7 +106,7 @@ func (eo *EncrypterOptions) WithContentType(contentType ContentType) *EncrypterO
 
 // WithCustomDeriveECDHES sets the function used for ECDH key derivation
 func (eo *EncrypterOptions) WithCustomDeriveECDHES(derive CustomDeriveECDHES) *EncrypterOptions {
-	eo.customDeriveECDHES = derive
+	eo.CustomDeriveECDHES = derive
 	return eo
 }
 
@@ -185,8 +185,8 @@ func NewEncrypter(enc ContentEncryption, rcpt Recipient, opts *EncrypterOptions)
 			return nil, ErrUnsupportedKeyType
 		}
 		var customDeriveECDHES CustomDeriveECDHES
-		if opts != nil && opts.customDeriveECDHES != nil {
-			customDeriveECDHES = opts.customDeriveECDHES
+		if opts != nil && opts.CustomDeriveECDHES != nil {
+			customDeriveECDHES = opts.CustomDeriveECDHES
 		}
 		encrypter.keyGenerator = ecKeyGenerator{
 			size:               encrypter.cipher.keySize(),
