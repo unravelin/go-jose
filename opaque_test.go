@@ -209,7 +209,7 @@ func makeOpaqueKeyEncrypter(t *testing.T, signingKey interface{}, alg KeyAlgorit
 }
 
 func makeOpaqueKeyDecrypter(t *testing.T, decryptionKey interface{}, alg KeyAlgorithm) *keyDecryptWrapper {
-	kd, err := newDecrypter(decryptionKey)
+	kd, err := newDecrypter(decryptionKey, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

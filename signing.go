@@ -26,7 +26,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"gopkg.in/square/go-jose.v2/json"
+	"github.com/unravelin/go-jose/json"
 )
 
 // NonceSource represents a source of random nonces to go into JWS objects

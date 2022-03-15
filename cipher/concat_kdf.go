@@ -41,7 +41,6 @@ func NewConcatKDF(hash crypto.Hash, z, algID, ptyUInfo, ptyVInfo, supPubInfo, su
 	copy(buffer[n:], supPrivInfo)
 
 	hasher := hash.New()
-
 	return &concatKDF{
 		z:      z,
 		info:   buffer,

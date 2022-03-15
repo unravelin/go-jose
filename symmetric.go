@@ -30,8 +30,8 @@ import (
 	"hash"
 	"io"
 
+	josecipher "github.com/unravelin/go-jose/cipher"
 	"golang.org/x/crypto/pbkdf2"
-	"gopkg.in/square/go-jose.v2/cipher"
 )
 
 // Random reader (stubbed out in tests)
@@ -197,7 +197,6 @@ func (ctx randomKeyGenerator) genKey() ([]byte, rawHeader, error) {
 	if err != nil {
 		return nil, rawHeader{}, err
 	}
-
 	return key, rawHeader{}, nil
 }
 
