@@ -21,9 +21,9 @@ import (
 	"bytes"
 	"reflect"
 
-	"github.com/unravelin/go-jose/json"
+	"github.com/unravelin/go-jose/v2/json"
 
-	"github.com/unravelin/go-jose"
+	"github.com/unravelin/go-jose/v2"
 )
 
 // Builder is a utility for making JSON Web Tokens. Calls can be chained, and

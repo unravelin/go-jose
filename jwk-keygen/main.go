@@ -30,7 +30,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/unravelin/go-jose"
+	"github.com/unravelin/go-jose/v2"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 

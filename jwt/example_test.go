@@ -26,8 +26,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 
-	"github.com/unravelin/go-jose"
-	"github.com/unravelin/go-jose/jwt"
+	"github.com/unravelin/go-jose/v2"
+	"github.com/unravelin/go-jose/v2/jwt"
 )
 
 var sharedKey = []byte("secret")

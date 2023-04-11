@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/unravelin/go-jose/json"
+	"github.com/unravelin/go-jose/v2/json"
 )
 
 // KeyAlgorithm represents a key management algorithm.
