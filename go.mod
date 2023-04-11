@@ -1,4 +1,4 @@
-module github.com/unravelin/go-jose
+module github.com/unravelin/go-jose/v2
 
 go 1.17
 
