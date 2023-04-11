@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/unravelin/go-jose/json"
+	"github.com/unravelin/go-jose/v2/json"
 )
 
 // rawJSONWebEncryption represents a raw JWE JSON object. Used for parsing/serializing.

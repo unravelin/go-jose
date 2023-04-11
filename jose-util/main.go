@@ -21,7 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/unravelin/go-jose"
+	"github.com/unravelin/go-jose/v2"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 

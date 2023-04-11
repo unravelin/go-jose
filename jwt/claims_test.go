@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/unravelin/go-jose/json"
+	"github.com/unravelin/go-jose/v2/json"
 
 	"github.com/stretchr/testify/assert"
 )

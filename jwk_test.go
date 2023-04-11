@@ -37,7 +37,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"github.com/unravelin/go-jose/json"
+	"github.com/unravelin/go-jose/v2/json"
 )
 
 // Test chain of two X.509 certificates

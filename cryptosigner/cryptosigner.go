@@ -28,7 +28,7 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/unravelin/go-jose"
+	"github.com/unravelin/go-jose/v2"
 	"golang.org/x/crypto/ed25519"
 )
 

@@ -28,8 +28,8 @@ import (
 	"fmt"
 	"math/big"
 
-	josecipher "github.com/unravelin/go-jose/cipher"
-	"github.com/unravelin/go-jose/json"
+	josecipher "github.com/unravelin/go-jose/v2/cipher"
+	"github.com/unravelin/go-jose/v2/json"
 	"golang.org/x/crypto/ed25519"
 )
 
